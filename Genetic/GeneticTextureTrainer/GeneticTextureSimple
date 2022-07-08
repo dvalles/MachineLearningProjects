@@ -1,0 +1,141 @@
+#This script tries to match a simple sin texture using a genetic model
+
+import ParameterFunctions as pf
+from ParameterFunctions import ImageGenerator #thats how you import some class or function action
+from ParameterFunctions import createImage
+import HelperFunctions as hf
+import random
+import numpy as np
+import math
+from PIL import Image
+import sys
+import noise
+
+#create intial population of random networks
+def create_population(count):
+	pop = np.zeros((count), dtype = ImageGenerator)
+	for x in range(0,count):
+		pop[x] = ImageGenerator()
+	return pop
+
+#breed two new networks from mother and father
+def breed(father, mother):
+	children = np.zeros((2), dtype = ImageGenerator) #array for two
+	for index in range(2):
+		child = ImageGenerator()
+		for key, value in father.params.items(): #looks like you might always have to call items when iterating through a dict
+			child.params[key] = random.choice([father.params[key], mother.params[key]])
+		children[index] = child
+	return children
+
+#randomly mutate network parameters
+def mutate(imageGenerator):
+	index = random.randint(0,len(imageGenerator.params)-1)
+	key = hf.get_nth_key(imageGenerator.params, index)
+	imageGenerator.params[key] = pf.paramInstFunctions[key]()
+	#network[index] = random.randint(0,20)
+	return imageGenerator
+
+#create image using generator and compare it to the target texture
+def fitness(imageGenerator):
+	imageArray = createImage(imageGenerator, imageSize)
+
+	# return totalDiff/(imageSize*imageSize)
+	avgDiff = np.mean(np.square(np.absolute(imageArray - targetImage))) #squared
+	# avgDiff = np.mean(np.absolute(imageArray - targetImage)) #not squared
+	return avgDiff
+
+#evaluate networks, sort, skim top, create kids, and mutate
+#all the other functions come together here
+def evolve(pop):
+	#evaluate the fitness and sort
+	graded = [(fitness(imageGenerator), imageGenerator) for imageGenerator in pop]
+	graded = [x[1] for x in sorted(graded, key=lambda x: x[0], reverse=False)] #I don't quite know how this works. Essentially saying take the 2nd array component of the sorted version of graded per element, which is the network
+
+	#get retainment length
+	retainPercent = .25
+	retainLength = int(len(graded)*retainPercent)
+
+	#get parents
+	parents = graded[0:retainLength]
+
+	#keep some losers anyway (helps get out of local minimum)
+	currLength = len(parents)
+	randSelect = .9
+	for lucky in graded[retainLength:]:
+		if random.random() >= randSelect and currLength < populationCount:
+			parents.append(lucky)
+			currLength += 1
+
+	#randomly mutate (also helps with minimum)
+	randMutate = .9
+	for individual in parents:
+		if random.random() >= randMutate:
+			individual = mutate(individual)
+
+	#how many children do we need?
+	parentLength  = len(parents)
+	desiredLength = int((populationCount - len(parents)*1-randomNewPercent))
+	children = []
+
+	while len(children) < desiredLength:
+		male = random.randint(0,parentLength-1)
+		female = random.randint(0,parentLength-1)
+
+		if male != female:
+			male = parents[male]
+			female = parents[female]
+
+			babies = breed(male, female)
+			for baby in babies:
+				if len(children) < desiredLength:
+					children.append(baby)
+
+	parents.extend(children)
+
+	#how many randoms do we need?
+	parentLength  = len(parents)
+	desiredLength = populationCount - len(parents)
+	randoms = create_population(desiredLength)
+	parents.extend(randoms)
+
+	#generational logging
+	global generation
+	generation += 1
+	if generation % generationLogCount == 0:
+		print("Generation:", generation)
+
+	return parents
+
+#setup values
+generation = 0
+maxGenerations = 300
+generationLogCount = 100
+populationCount = 40
+imageSize = 20
+patchSize = max(2,int(imageSize/20)) #less than two causes problems
+randomNewPercent = .1 #0 to 1 range
+
+#setup images
+targetImages = hf.prepareImages(imageSize)
+if len(sys.argv) > 1: #argument to choose image
+	targetImage = targetImages[int(sys.argv[1])]
+else:
+	targetImage = ImageGenerator()
+	print("Target Image Params:",targetImage.params)
+	targetImage = createImage(targetImage, imageSize)
+	timage = Image.fromarray(targetImage)
+	timage.show()
+
+#evolution filushion
+pop = create_population(populationCount)
+for _ in range(maxGenerations):
+	pop = evolve(pop)
+
+#output
+for x in range(1):
+	finalImage = createImage(pop[x], imageSize)
+	finalImage = Image.fromarray(finalImage) 
+	finalImage.show()
+showTarget = Image.fromarray(targetImage)
+showTarget.show()

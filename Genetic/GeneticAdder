@@ -1,0 +1,105 @@
+import random
+
+"""
+This file creates a genetic model that is able to find parameters that correctly add to above 30
+Used as an introduction to genetic models
+"""
+
+#create intial population of random networks
+def create_population(count):
+	pop = []
+	for _ in range(0,count):
+		network = [random.randint(0,20), random.randint(0,20)]
+		pop.append(network)
+	return pop
+
+#breed two new networks from mother and father
+def breed(father, mother):
+	children = []
+	for _ in range(2):
+		child = []
+		for x in range(2):
+			child.append(random.choice([father[x], mother[x]]))
+		children.append(child)
+	return children
+
+#randomly mutate network parameters
+def mutate(network):
+	index = random.randint(0,1)
+	network[index] = random.randint(0,20)
+	return network
+
+def fitness(network):
+	return network[0] + network[1 ]
+	if network[0] + network[1] >= 30:
+		return 1
+	return 0
+
+#evaluate networks, sort, skim top, create kids, and mutate
+#all the other functions come together here
+def evolve(pop):
+	#evaluate the fitness and sort
+	graded = [(fitness(network), network) for network in pop]
+	graded = [x[1] for x in sorted(graded, key=lambda x: x[0], reverse=True)] #I don't quite know how this works. Essentially saying take the 2nd array component of the sorted version of graded per element, which is the network
+	
+	#get retainment length
+	retainPercent = .25
+	retainLength = int(len(graded)*retainPercent)
+
+	#get parents
+	parents = graded[0:retainLength]
+
+	#keep some losers anyway (helps get out of local minimum)
+	randSelect = .9
+	for jerry in graded[retainLength:]:
+		if random.random() >= randSelect:
+			parents.append(jerry)
+
+	#randomly mutate (also helps with minimum)
+	randMutate = .9
+	for individual in parents:
+		if random.random() >= randMutate:
+			individual = mutate(individual)
+
+	#how many children do we need?
+	parentLength = len(parents)
+	desiredLength = 20 - len(parents)
+	children = []
+
+	while len(children) < desiredLength:
+		male = random.randint(0,parentLength-1)
+		female = random.randint(0,parentLength-1)
+
+		if male != female:
+			male = parents[male]
+			female = parents[female]
+
+			babies = breed(male, female)
+			for baby in babies:
+				if len(children) < desiredLength:
+					children.append(baby)
+
+	parents.extend(children)
+	return parents
+
+
+
+
+
+
+print()
+print("breed n' feed")
+for _ in range(10):
+	children = breed([2,2], [4,4])
+	print(children[0])
+print()
+print("Mutation Station")
+print([2,5])
+print(mutate([2,5]))
+print()
+print("population sensation")
+pop = create_population(20)
+for _ in range(0, 10000):
+	pop = evolve(pop)
+print(pop)
+
