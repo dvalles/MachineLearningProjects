@@ -1,2 +1,2 @@
-This repository contains some of the machine learning projects I have done. Mostly revolving around
+This repository contains some of the machine learning projects I have done/am working on. Mostly revolving around
 learning new architectures and concepts. Enjoy!
